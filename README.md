@@ -21,63 +21,115 @@ The following steps were performed to clean and preprocess the dataset. Detailed
 * Performed initial checks using `df.head()`, `df.info()`, and `df.isnull().sum()` to understand structure, data types, and identify explicit missing values.
 * **Observation:** The dataset initially had no explicit `NaN` values.
 
-### 2. Column Renaming and Standardization
+# Data Cleaning and Inspection for No-Show Medical Appointments Dataset
 
-* Column headers were converted to lowercase and formatted to snake_case (e.g., `PatientId` to `patient_id`, `ScheduledDay` to `scheduled_day`).
-* Common typos in column names like `Hipertension` and `Handcap` were corrected to `hypertension` and `handicap` respectively, for clarity and consistency.
+```python
+# 2. Load the Dataset
+# The first step is to load the raw CSV file into a Pandas DataFrame.
 
-### 3. Handling Duplicate Rows
+# Load the dataset from the uploaded CSV file
+df = pd.read_csv('KaggleV2-May-2016.csv')
 
-* A check for exact duplicate rows was performed.
-* **Observation:** No duplicate rows were found in the dataset.
+# Display the first 5 rows to get an initial glance at the data structure
+print("--- Original DataFrame Head ---")
+print(df.head())
 
-### 4. Standardizing Categorical Text Values
+# 3. Initial Data Inspection
 
-* The `Gender` column (renamed to `gender`) was standardized. 'F' and 'M' entries were converted to 'Female' and 'Male' respectively to ensure uniformity.
+# 3.1. DataFrame Information (.info())
+# This provides a concise summary of the DataFrame
+print("\n--- Original DataFrame Info ---")
+df.info()
 
-### 5. Date Format Conversion
+# 3.2. Missing Values Check (.isnull().sum())
+# Count number of missing values for each column
+print("\n--- Initial Missing Values Count ---")
+print(df.isnull().sum())
 
-* The `ScheduledDay` and `AppointmentDay` columns (renamed to `scheduled_day` and `appointment_day`) were converted from string/object types to `datetime` objects.
-* The time component was removed, ensuring that both columns represent only the date (`YYYY-MM-DD`).
+# 4. Column Renaming and Standardization
+# Rename columns to lowercase and snake_case, fix typos
 
-### 6. Data Type Correction and Anomalies Handling
+df.columns = df.columns.str.lower().str.replace('[^a-z0-9_]', '', regex=True)
+df.rename(columns={
+    'patientid': 'patient_id',
+    'appointmentid': 'appointment_id',
+    'scheduledday': 'scheduled_day',
+    'appointmentday': 'appointment_day',
+    'hipertension': 'hypertension',
+    'handcap': 'handicap',
+    'sms_received': 'sms_received',
+    'no_show': 'no_show'
+}, inplace=True)
 
-* The `Age` column (renamed to `age`) was inspected for inconsistencies.
-* An invalid `age` entry of `-1` was identified. This entry was imputed (replaced) with the median age of the dataset (37) to maintain data integrity without skewing statistics.
-* The `age` column was then explicitly cast to an integer type.
-* All other columns' data types were verified to be appropriate for their content.
+print("\n--- DataFrame Head after Renaming Columns ---")
+print(df.head())
+print("\n--- New Column Names ---")
+print(df.columns.tolist())
 
-## How to Run the Cleaning Process
+# 5. Handling Duplicate Rows
 
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/YourGitHubUsername/your-repo-name.git](https://github.com/YourGitHubUsername/your-repo-name.git)
-    cd your-repo-name
-    ```
-2.  **Install Dependencies:** Ensure you have Python installed. It's recommended to use a virtual environment or Anaconda.
-    ```bash
-    pip install pandas numpy matplotlib seaborn
-    ```
-3.  **Run the Jupyter Notebook:**
-    ```bash
-    jupyter notebook No_Show_Appointments_Cleaning.ipynb
-    ```
-    Execute all cells in the notebook to perform the data cleaning and preprocessing. This will generate the `KaggleV2-May-2016_cleaned.csv` file.
+initial_rows = df.shape[0]
+df.drop_duplicates(inplace=True)
+rows_after_dropping_duplicates = df.shape[0]
 
-## Cleaned Data
+print(f"\n--- Duplicate Rows Check ---")
+print(f"Initial number of rows: {initial_rows}")
+print(f"Number of rows after dropping duplicates: {rows_after_dropping_duplicates}")
 
-The cleaned dataset is available as `KaggleV2-May-2016_cleaned.csv` in this repository, ready for further analysis.
+if initial_rows - rows_after_dropping_duplicates > 0:
+    print(f"Removed {initial_rows - rows_after_dropping_duplicates} duplicate rows.")
+else:
+    print("No duplicate rows found.")
 
-## Future Work
+# 6. Standardize Categorical Text Values
 
-* **Exploratory Data Analysis (EDA):** In-depth visualization and statistical analysis of the cleaned data to uncover patterns and insights.
-* **Feature Engineering:** Creation of new features (e.g., `days_between_scheduling_and_appointment`, `appointment_day_of_week`) that could be useful for modeling.
-* **Predictive Modeling:** Building machine learning models to predict `no_show` based on patient and appointment characteristics.
+print("\n--- Unique 'gender' values before standardization ---")
+print(df['gender'].unique())
 
-## Contact
+df['gender'] = df['gender'].str.upper().replace({'F': 'Female', 'M': 'Male'})
 
-For any questions or suggestions, please feel free to reach out.
+print("\n--- Unique 'gender' values after standardization ---")
+print(df['gender'].unique())
 
-* **Prabhat Dutta**
-* [Your LinkedIn Profile (Optional)]
-* [Your Email Address (Optional)]
+# 7. Date Format Conversion
+
+df['scheduled_day'] = pd.to_datetime(df['scheduled_day'])
+df['appointment_day'] = pd.to_datetime(df['appointment_day'])
+
+df['scheduled_day'] = df['scheduled_day'].dt.date
+df['appointment_day'] = df['appointment_day'].dt.date
+
+print("\n--- DataFrame Head after Date Conversion ---")
+print(df[['scheduled_day', 'appointment_day']].head())
+
+# 8. Data Type Correction and Anomalies Handling
+
+# 8.1. Handling Invalid 'Age' Values
+
+print("\n--- 'age' Column Descriptive Statistics ---")
+print(df['age'].describe())
+
+invalid_age_count = df[df['age'] < 0].shape[0]
+print(f"\nNumber of invalid ages (less than 0): {invalid_age_count}")
+
+if invalid_age_count > 0:
+    df.loc[df['age'] < 0, 'age'] = np.nan
+    median_age = df['age'].median()
+    df['age'].fillna(median_age, inplace=True)
+    df['age'] = df['age'].astype(int)
+    print(f"Invalid ages imputed with median: {median_age:.0f} and column converted to integer.")
+else:
+    df['age'] = df['age'].astype(int)
+    print("No invalid ages found. 'age' column ensured to be integer type.")
+
+# 8.2. Final Data Type Review
+
+print("\n--- Final DataFrame Info after all cleaning steps ---")
+df.info()
+
+# 9. Save Cleaned Data
+
+df.to_csv('KaggleV2-May-2016_cleaned.csv', index=False)
+print("\nCleaned data saved to 'KaggleV2-May-2016_cleaned.csv'")
+```
+
